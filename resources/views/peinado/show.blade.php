@@ -11,7 +11,7 @@
         <p><strong>Precio:</strong> ${{ $peinado->price }}</p>
         
         
-        <img src="{{ url('assets/img/corte.jpg') }}" class="img-fluid">
+        <img src="{{ $peinado->getPath() }}" width="30%" class="img-fluid">
         
         <p class="lead">
             <a href="{{ route('peinado.index') }}" class="btn btn-lg btn-light fw-bold border-white bg-white">

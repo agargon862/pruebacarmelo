@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('hair_type',110);
             $table->text('description');
             $table->decimal('price', 8, 2);
-            $table->string('photo')->nullable();
+            $table->string('image', 100)->nullable();
             $table->timestamps();
             $table->unique(['author', 'price']);
         });

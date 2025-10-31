@@ -12,7 +12,7 @@ use Illuminate\View\View;
 class PeinadoController extends Controller
 {
     function index(): View {
-        $peinados = Peinado::all();//eloquent, da un array con todos los datos de la tabla
+        $peinados = Peinado::all();
         return view('peinado.index', ['peinados' => $peinados]);
     }
 
@@ -21,43 +21,51 @@ class PeinadoController extends Controller
     }
 
     function store(Request $request): RedirectResponse {
-        //eloquent ORM
-        //queda validar los datos de entrada
-        $peinado = new Peinado($request->all());//eloquent
         $result = false;
         try {
-            $result = $peinado->save();//eloquent, inserta objeto en la tabla
+            // Primero guardamos el peinado SIN la imagen
+            $peinado = new Peinado($request->except('photo'));
+            $result = $peinado->save();
+            
+            // DESPUÉS subimos la imagen si existe
+            if($request->hasFile('photo')){
+                $this->upload($request, $peinado);
+            }
+            
             $txtmessage = 'The haircut has been added.';
+            
         } catch(UniqueConstraintViolationException $e) {
             $txtmessage = 'Clave única.';
         } catch(QueryException $e) {
-            $txtmessage = 'Campo null';
+            $txtmessage = 'Campo null: ' . $e->getMessage();
         } catch(\Exception $e) {
-            $txtmessage = 'Error fatal';
+            $txtmessage = 'Error fatal: ' . $e->getMessage();
         }
-        $message = [
-            'mensajeTexto' => $txtmessage,
-        ];
+        
+        $message = ['mensajeTexto' => $txtmessage];
+        
         if($result) {
             return redirect()->route('main')->with($message);
         } else {
             return back()->withInput()->withErrors($message);
         }
     }
+    
+    private function upload(Request $request, Peinado $peinado){
+        $image = $request->file('photo'); // Cambiado de 'image' a 'photo'
+        $name = $peinado->id . '.' . $image->getClientOriginalExtension();
+
+        // Guardamos la imagen en storage/app/public/peinado
+        $path = $image->storeAs('peinado', $name, 'public');
+
+        // Actualizamos el campo 'photo' en el modelo
+        $peinado->photo = $path; // Cambiado de 'image' a 'photo'
+        $peinado->save();
+    }
 
     function show(Peinado $peinado): View {
-        //laravel: inyección de dependencia -> convierte el número del id en el objeto
-        //return view('peinado.show', compact('peinado'));
         return view('peinado.show', ['peinado' => $peinado]);
     }
-    
-    /*function show($id) {
-        $peinado = Peinado::find($id);
-        if($peinado == null) {
-            abort(404);
-        }
-        dd($peinado);
-    }*/
 
     function edit(Peinado $peinado): View {
         return view('peinado.edit', ['peinado' => $peinado]);
@@ -65,11 +73,16 @@ class PeinadoController extends Controller
 
     function update(Request $request, Peinado $peinado) {
         $result = false;
-        $peinado->fill($request->all());
-        $peinado->price = $peinado->price * 1.1;
         try {
+            $peinado->fill($request->except('photo'));
+            $peinado->price = $peinado->price * 1.1;
             $result = $peinado->save();
-            //$result = $peinado->update($request->all());
+            
+            // Si hay nueva imagen, la subimos
+            if($request->hasFile('photo')){
+                $this->upload($request, $peinado);
+            }
+            
             $txtmessage = 'The haircut has been edited.';
         } catch(UniqueConstraintViolationException $e) {
             $txtmessage = 'Primary key.';
@@ -78,9 +91,9 @@ class PeinadoController extends Controller
         } catch(\Exception $e) {
             $txtmessage = 'Fatal error.';
         }
-        $message = [
-            'mensajeTexto' => $txtmessage,
-        ];
+        
+        $message = ['mensajeTexto' => $txtmessage];
+        
         if($result) {
             return redirect()->route('main')->with($message);
         } else {
@@ -89,11 +102,11 @@ class PeinadoController extends Controller
     }
 
     function destroy(Peinado $peinado) {
-    try {
-        $peinado->delete();
-        return redirect()->route('peinado.index')->with('success', 'Peinado eliminado correctamente');
-    } catch (\Exception $e) {
-        return redirect()->route('peinado.index')->with('error', 'Error al eliminar el peinado: ' . $e->getMessage());
+        try {
+            $peinado->delete();
+            return redirect()->route('peinado.index')->with('success', 'Peinado eliminado correctamente');
+        } catch (\Exception $e) {
+            return redirect()->route('peinado.index')->with('error', 'Error al eliminar el peinado: ' . $e->getMessage());
+        }
     }
-}
 }
