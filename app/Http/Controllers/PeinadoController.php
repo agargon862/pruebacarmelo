@@ -3,139 +3,97 @@
 namespace App\Http\Controllers;
 
 use App\Models\Peinado;
-use Illuminate\Http\Request;
-use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Database\QueryException;
+use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class PeinadoController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        $peinados = Peinado::all();
-        return view('peinado.index', ['peinados' => $peinados]);       
+    function index(): View {
+        $peinados = Peinado::all();//eloquent, da un array con todos los datos de la tabla
+        return view('peinado.index', ['peinados' => $peinados]);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
+    function create(): View {
         return view('peinado.create');
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //Peinado es un modelo de eloquent
-        //Queda validar los datos de entrada
-        $peinado = new Peinado($request->all());
+    function store(Request $request): RedirectResponse {
+        //eloquent ORM
+        //queda validar los datos de entrada
+        $peinado = new Peinado($request->all());//eloquent
         $result = false;
-        $txtMessage = ''; // Inicializar la variable
-        
-        try{
-            $result = $peinado->save();
-            if($result) {
-                $txtMessage = 'Peinado creado exitosamente';
-            }
-        }catch(UniqueConstraintViolationException $e){
-            $txtMessage = 'Error: Ya existe un peinado con ese nombre o la combinación de autor y precio ya existe.';
-        }catch(QueryException $e){
-            $txtMessage = 'Error: Campo nulo o datos inválidos';
-        }catch(\Exception $e){
-            $txtMessage = 'Error fatal: ' . $e->getMessage();
+        try {
+            $result = $peinado->save();//eloquent, inserta objeto en la tabla
+            $txtmessage = 'The haircut has been added.';
+        } catch(UniqueConstraintViolationException $e) {
+            $txtmessage = 'Clave única.';
+        } catch(QueryException $e) {
+            $txtmessage = 'Campo null';
+        } catch(\Exception $e) {
+            $txtmessage = 'Error fatal';
         }
-        
-        // Crear el array con el mensaje
         $message = [
-            'mensajeTexto' => $txtMessage,
-            'tipo' => $result ? 'success' : 'error'
+            'mensajeTexto' => $txtmessage,
         ];
-        
-        if($result){
-            // Para éxito, pasar el array completo
-            return redirect()->route('peinado.index')->with($message);
-        }else{
-            // Para error, pasar el array en withErrors
-            $errores = ['general' => $txtMessage];
-            return back()->withInput()->withErrors($errores)->with($message);
+        if($result) {
+            return redirect()->route('main')->with($message);
+        } else {
+            return back()->withInput()->withErrors($message);
         }
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Peinado $peinado){
+    function show(Peinado $peinado): View {
+        //laravel: inyección de dependencia -> convierte el número del id en el objeto
+        //return view('peinado.show', compact('peinado'));
         return view('peinado.show', ['peinado' => $peinado]);
-        
     }
-    /*
-    function show($id)
-    {
+    
+    /*function show($id) {
         $peinado = Peinado::find($id);
-        if($peinado == null){
+        if($peinado == null) {
             abort(404);
         }
-    }
-    */
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Peinado $peinado)
-    {
+        dd($peinado);
+    }*/
+
+    function edit(Peinado $peinado): View {
         return view('peinado.edit', ['peinado' => $peinado]);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Peinado $peinado)
-    {
-         //Peinado es un modelo de eloquent
-        //Queda validar los datos de entrada
-        $peinado ->fill($request ->all());
+    function update(Request $request, Peinado $peinado) {
         $result = false;
-        $txtMessage = ''; // Inicializar la variable
-        
-        try{
+        $peinado->fill($request->all());
+        $peinado->price = $peinado->price * 1.1;
+        try {
             $result = $peinado->save();
-            if($result) {
-                $txtMessage = 'Peinado editado exitosamente';
-            }
-        }catch(UniqueConstraintViolationException $e){
-            $txtMessage = 'Error: Ya existe un peinado con ese nombre o la combinación de autor y precio ya existe.';
-        }catch(QueryException $e){
-            $txtMessage = 'Error: Campo nulo o datos inválidos';
-        }catch(\Exception $e){
-            $txtMessage = 'Error fatal: ' . $e->getMessage();
+            //$result = $peinado->update($request->all());
+            $txtmessage = 'The haircut has been edited.';
+        } catch(UniqueConstraintViolationException $e) {
+            $txtmessage = 'Primary key.';
+        } catch(QueryException $e) {
+            $txtmessage = 'Null value.';
+        } catch(\Exception $e) {
+            $txtmessage = 'Fatal error.';
         }
-        
-        // Crear el array con el mensaje
         $message = [
-            'mensajeTexto' => $txtMessage,
-            'tipo' => $result ? 'success' : 'error'
+            'mensajeTexto' => $txtmessage,
         ];
-        
-        if($result){
-            // Para éxito, pasar el array completo
+        if($result) {
             return redirect()->route('main')->with($message);
-        }else{
-            // Para error, pasar el array en withErrors
-            return back()->withInput()->withErrors($errores)->with($message);
+        } else {
+            return back()->withInput()->withErrors($message);
         }
-
-    
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Peinado $peinado)
-    {
-        //
+    function destroy(Peinado $peinado) {
+    try {
+        $peinado->delete();
+        return redirect()->route('peinado.index')->with('success', 'Peinado eliminado correctamente');
+    } catch (\Exception $e) {
+        return redirect()->route('peinado.index')->with('error', 'Error al eliminar el peinado: ' . $e->getMessage());
     }
+}
 }
